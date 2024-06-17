@@ -1,11 +1,11 @@
 package gui
 
 import (
-	"os"
-
 	"github.com/fatih/color"
 	"github.com/jesseduffield/gocui"
 	"github.com/samber/lo"
+	"os"
+	"strings"
 )
 
 // See https://github.com/xtermjs/xterm.js/issues/4238
@@ -185,8 +185,13 @@ func (gui *Gui) getInformationContent() string {
 		attrs = append(attrs, color.Underline)
 	}
 
+	contextStr := ""
+	if gui.DockerCommand.Context != "" {
+		contextStr = gui.DockerCommand.Context
+	}
+
 	donate := color.New(attrs...).Sprint(gui.Tr.Donate)
-	return donate + " " + informationStr
+	return strings.Join([]string{contextStr, donate, informationStr}, " ")
 }
 
 func (gui *Gui) popupViewNames() []string {

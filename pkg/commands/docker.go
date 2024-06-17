@@ -42,6 +42,8 @@ type DockerCommand struct {
 	ContainerMutex         deadlock.Mutex
 	ServiceMutex           deadlock.Mutex
 
+	Context string
+
 	Closers []io.Closer
 }
 
@@ -76,7 +78,9 @@ func NewDockerCommand(log *logrus.Entry, osCommand *OSCommand, tr *i18n.Translat
 		ogLog.Fatal(err)
 	}
 
-	dockerHost, err := determineDockerHost()
+	dockerContext, err := determineDockerContext()
+
+	dockerHost, err := determineDockerHost(dockerContext)
 	if err != nil {
 		ogLog.Printf("> could not determine host %v", err)
 	}
@@ -95,6 +99,7 @@ func NewDockerCommand(log *logrus.Entry, osCommand *OSCommand, tr *i18n.Translat
 		ErrorChan:              errorChan,
 		InDockerComposeProject: true,
 		Closers:                []io.Closer{tunnelCloser},
+		Context:                dockerContext,
 	}
 
 	command := utils.ApplyTemplate(
@@ -324,18 +329,8 @@ func (c *DockerCommand) DockerComposeConfig() string {
 	return output
 }
 
-// determineDockerHost tries to the determine the docker host that we should connect to
-// in the following order of decreasing precedence:
-//   - value of "DOCKER_HOST" environment variable
-//   - host retrieved from the current context (specified via DOCKER_CONTEXT)
-//   - "default docker host" for the host operating system, otherwise
-func determineDockerHost() (string, error) {
-	// If the docker host is explicitly set via the "DOCKER_HOST" environment variable,
-	// then its a no-brainer :shrug:
-	if os.Getenv("DOCKER_HOST") != "" {
-		return os.Getenv("DOCKER_HOST"), nil
-	}
-
+// determineDockerContext gets the right context according to either config or env
+func determineDockerContext() (string, error) {
 	currentContext := os.Getenv("DOCKER_CONTEXT")
 	if currentContext == "" {
 		cf, err := cliconfig.Load(cliconfig.Dir())
@@ -344,8 +339,22 @@ func determineDockerHost() (string, error) {
 		}
 		currentContext = cf.CurrentContext
 	}
+	return currentContext, nil
+}
 
-	if currentContext == "" {
+// determineDockerHost tries to the determine the docker host that we should connect to
+// in the following order of decreasing precedence:
+//   - value of "DOCKER_HOST" environment variable
+//   - host retrieved from the current context (specified via DOCKER_CONTEXT)
+//   - "default docker host" for the host operating system, otherwise
+func determineDockerHost(dockerContext string) (string, error) {
+	// If the docker host is explicitly set via the "DOCKER_HOST" environment variable,
+	// then its a no-brainer :shrug:
+	if os.Getenv("DOCKER_HOST") != "" {
+		return os.Getenv("DOCKER_HOST"), nil
+	}
+
+	if dockerContext == "" {
 		// If a docker context is neither specified via the "DOCKER_CONTEXT" environment variable nor via the
 		// $HOME/.docker/config file, then we fall back to connecting to the "default docker host" meant for
 		// the host operating system.
@@ -358,7 +367,7 @@ func determineDockerHost() (string, error) {
 	)
 
 	st := ctxstore.New(cliconfig.ContextStoreDir(), storeConfig)
-	md, err := st.GetMetadata(currentContext)
+	md, err := st.GetMetadata(dockerContext)
 	if err != nil {
 		return "", err
 	}
