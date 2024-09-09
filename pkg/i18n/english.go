@@ -28,6 +28,9 @@ type TranslationSet struct {
 	CannotKillChildError                       string
 	CannotStartStop                            string
 
+	SwitchProjectDescription string
+	SwitchProjectTitle       string
+
 	Donate                      string
 	Cancel                      string
 	CustomCommandTitle          string
@@ -164,6 +167,8 @@ func englishSet() TranslationSet {
 		CannotKillChildError:              "Waited three seconds for child process to stop. There may be an orphan process that continues to run on your system.",
 		CannotStartStop:                   "Cannot start stop this container",
 
+		SwitchProjectDescription: "Switch project",
+
 		Donate:  "Donate",
 		Confirm: "Confirm",
 
@@ -240,6 +245,7 @@ func englishSet() TranslationSet {
 		TopTitle:                  "Top",
 		StatsTitle:                "Stats",
 		CreditsTitle:              "About",
+		SwitchProjectTitle:        "Switch Project",
 		ContainerConfigTitle:      "Container Config",
 		ContainerEnvTitle:         "Container Env",
 		NothingToDisplay:          "Nothing to display",

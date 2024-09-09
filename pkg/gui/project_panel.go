@@ -3,6 +3,7 @@ package gui
 import (
 	"bytes"
 	"context"
+	"github.com/jesseduffield/lazydocker/pkg/config"
 	"path"
 	"strings"
 
@@ -179,4 +180,27 @@ func (gui *Gui) handleViewAllLogs(g *gocui.Gui, v *gocui.View) error {
 	}
 
 	return gui.runSubprocess(c)
+}
+
+func (gui *Gui) handleProjectsSwitchCommand(g *gocui.Gui, v *gocui.View) error {
+	test := []string{"toto", "tata", "tutu"}
+	// WIP on getting projects list
+	//r, err := gui.DockerCommand(context.Background())
+	//gui.Log.Error(r, err)
+	var customCommands []config.CustomCommand
+	for _, t := range test {
+		customCommand := config.CustomCommand{
+			Name: t,
+			InternalFunction: func(t string) func() error {
+				return func() error {
+					gui.Log.Error(t)
+					return nil
+				}
+			}(t),
+		}
+		customCommands = append(customCommands, customCommand)
+	}
+	gui.Log.Error(customCommands)
+
+	return gui.createCommandMenu(customCommands, commands.CommandObject{}, gui.Tr.SwitchProjectDescription, gui.Tr.SwitchProjectDescription)
 }
