@@ -3,6 +3,7 @@ package gui
 import (
 	"bytes"
 	"context"
+	"github.com/docker/docker/api/types/container"
 	"github.com/jesseduffield/lazydocker/pkg/config"
 	"path"
 	"strings"
@@ -187,6 +188,11 @@ func (gui *Gui) handleProjectsSwitchCommand(g *gocui.Gui, v *gocui.View) error {
 	// WIP on getting projects list
 	//r, err := gui.DockerCommand(context.Background())
 	//gui.Log.Error(r, err)
+	containers, err := gui.DockerCommand.Client.ContainerList(context.Background(), container.ListOptions{All: true})
+	gui.Log.Warn(containers, err)
+	for _, container := range containers {
+		gui.Log.Warn(container.Labels)
+	}
 	var customCommands []config.CustomCommand
 	for _, t := range test {
 		customCommand := config.CustomCommand{
