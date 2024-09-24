@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
@@ -37,7 +36,7 @@ func NewSSHHandler(oSCommand CmdKiller) *SSHHandler {
 			return (&net.Dialer{}).DialContext(ctx, network, addr)
 		},
 		startCmd: func(cmd *exec.Cmd) error { return cmd.Start() },
-		tempDir:  ioutil.TempDir,
+		tempDir:  os.MkdirTemp,
 		getenv:   os.Getenv,
 		setenv:   os.Setenv,
 	}
@@ -45,10 +44,11 @@ func NewSSHHandler(oSCommand CmdKiller) *SSHHandler {
 
 // HandleSSHDockerHost overrides the DOCKER_HOST environment variable
 // to point towards a local unix socket tunneled over SSH to the specified ssh host.
-func (self *SSHHandler) HandleSSHDockerHost() (io.Closer, error) {
+func (self *SSHHandler) HandleSSHDockerHost(dockerHost string) (io.Closer, error) {
 	const key = "DOCKER_HOST"
 	ctx := context.Background()
-	u, err := url.Parse(self.getenv(key))
+
+	u, err := url.Parse(dockerHost)
 	if err != nil {
 		// if no or an invalid docker host is specified, continue nominally
 		return noopCloser{}, nil
@@ -56,7 +56,7 @@ func (self *SSHHandler) HandleSSHDockerHost() (io.Closer, error) {
 
 	// if the docker host scheme is "ssh", forward the docker socket before creating the client
 	if u.Scheme == "ssh" {
-		tunnel, err := self.createDockerHostTunnel(ctx, u.Host)
+		tunnel, err := self.createDockerHostTunnel(ctx, u.String())
 		if err != nil {
 			return noopCloser{}, fmt.Errorf("tunnel ssh docker host: %w", err)
 		}

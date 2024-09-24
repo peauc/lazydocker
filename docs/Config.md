@@ -12,12 +12,28 @@ Changes to the user config will only take place after closing and re-opening laz
 - Linux: `~/.config/lazydocker/config.yml`
 - Windows: `C:\\Users\\<User>\\AppData\\Roaming\\jesseduffield\\lazydocker\\config.yml` (I think)
 
+JSON schema is available for `config.yml` so that IntelliSense in Visual Studio Code
+(completion and error checking) is automatically enabled when the [YAML Red Hat][yaml]
+extension is installed. However, note that automatic schema detection only works
+if your config file is in one of the standard paths mentioned above. If you
+override the path to the file, you can still make IntelliSense work by adding
+
+```yaml
+# yaml-language-server: $schema=https://json.schemastore.org/lazydocker.json
+```
+
+to the top of your config file or via [Visual Studio Code settings.json config][settings].
+
+[yaml]: https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml
+[settings]: https://github.com/redhat-developer/vscode-yaml#associating-a-schema-to-a-glob-pattern-via-yamlschemas
+
 ## Default:
 
 ```yml
 gui:
   scrollHeight: 2
-  language: 'auto' # one of 'auto' | 'en' | 'pl' | 'nl' | 'de' | 'tr'
+  language: "auto" # one of 'auto' | 'en' | 'pl' | 'nl' | 'de' | 'tr'
+  border: "rounded" # one of 'rounded' | 'single' | 'double' | 'hidden'
   theme:
     activeBorderColor:
       - green
@@ -49,7 +65,7 @@ logs:
   since: '60m' # set to '' to show all logs
   tail: '' # set to 200 to show last 200 lines of logs
 commandTemplates:
-  dockerCompose: docker-compose
+  dockerCompose: docker compose # Determines the Docker Compose command to run, referred to as .DockerCompose in commandTemplates
   restartService: '{{ .DockerCompose }} restart {{ .Service.Name }}'
   up:  '{{ .DockerCompose }} up -d'
   down: '{{ .DockerCompose }} down'

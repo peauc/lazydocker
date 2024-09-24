@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	dockerTypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/fatih/color"
 	"github.com/jesseduffield/gocui"
 	"github.com/jesseduffield/lazydocker/pkg/commands"
@@ -312,19 +312,19 @@ func (gui *Gui) handleHideStoppedContainers(g *gocui.Gui, v *gocui.View) error {
 }
 
 func (gui *Gui) handleContainersRemoveMenu(g *gocui.Gui, v *gocui.View) error {
-	container, err := gui.Panels.Containers.GetSelectedItem()
+	ctr, err := gui.Panels.Containers.GetSelectedItem()
 	if err != nil {
 		return nil
 	}
 
-	handleMenuPress := func(configOptions dockerTypes.ContainerRemoveOptions) error {
+	handleMenuPress := func(configOptions container.RemoveOptions) error {
 		return gui.WithWaitingStatus(gui.Tr.RemovingStatus, func() error {
-			if err := container.Remove(configOptions); err != nil {
+			if err := ctr.Remove(configOptions); err != nil {
 				if commands.HasErrorCode(err, commands.MustStopContainer) {
 					return gui.createConfirmationPanel(gui.Tr.Confirm, gui.Tr.MustForceToRemoveContainer, func(g *gocui.Gui, v *gocui.View) error {
 						return gui.WithWaitingStatus(gui.Tr.RemovingStatus, func() error {
 							configOptions.Force = true
-							return container.Remove(configOptions)
+							return ctr.Remove(configOptions)
 						})
 					}, nil)
 				}
@@ -336,12 +336,12 @@ func (gui *Gui) handleContainersRemoveMenu(g *gocui.Gui, v *gocui.View) error {
 
 	menuItems := []*types.MenuItem{
 		{
-			LabelColumns: []string{gui.Tr.Remove, "docker rm " + container.ID[1:10]},
-			OnPress:      func() error { return handleMenuPress(dockerTypes.ContainerRemoveOptions{}) },
+			LabelColumns: []string{gui.Tr.Remove, "docker rm " + ctr.ID[1:10]},
+			OnPress:      func() error { return handleMenuPress(container.RemoveOptions{}) },
 		},
 		{
-			LabelColumns: []string{gui.Tr.RemoveWithVolumes, "docker rm --volumes " + container.ID[1:10]},
-			OnPress:      func() error { return handleMenuPress(dockerTypes.ContainerRemoveOptions{RemoveVolumes: true}) },
+			LabelColumns: []string{gui.Tr.RemoveWithVolumes, "docker rm --volumes " + ctr.ID[1:10]},
+			OnPress:      func() error { return handleMenuPress(container.RemoveOptions{RemoveVolumes: true}) },
 		},
 	}
 
@@ -351,6 +351,8 @@ func (gui *Gui) handleContainersRemoveMenu(g *gocui.Gui, v *gocui.View) error {
 	})
 }
 
+// TODO: do same thing for start
+// Fix UI not showing it being paused (it should say unpaused)
 func (gui *Gui) PauseContainer(container *commands.Container) error {
 	return gui.WithWaitingStatus(gui.Tr.PausingStatus, func() (err error) {
 		if container.Details.State.Paused {
@@ -368,23 +370,33 @@ func (gui *Gui) PauseContainer(container *commands.Container) error {
 }
 
 func (gui *Gui) handleContainerPause(g *gocui.Gui, v *gocui.View) error {
-	container, err := gui.Panels.Containers.GetSelectedItem()
+	ctr, err := gui.Panels.Containers.GetSelectedItem()
 	if err != nil {
 		return nil
 	}
 
-	return gui.PauseContainer(container)
+	return gui.PauseContainer(ctr)
 }
 
-func (gui *Gui) handleContainerStop(g *gocui.Gui, v *gocui.View) error {
-	container, err := gui.Panels.Containers.GetSelectedItem()
+func (gui *Gui) handleContainerStartStop(g *gocui.Gui, v *gocui.View) error {
+	ctr, err := gui.Panels.Containers.GetSelectedItem()
 	if err != nil {
 		return nil
+	}
+
+	if !(ctr.Container.State == "exited" || ctr.Container.State == "running") {
+		return gui.createErrorPanel(gui.Tr.CannotStartStop)
+	}
+
+	if ctr.Container.State == "exited" {
+		return gui.WithWaitingStatus(gui.Tr.StoppingStatus, func() error {
+			return ctr.Start()
+		})
 	}
 
 	return gui.createConfirmationPanel(gui.Tr.Confirm, gui.Tr.StopContainer, func(g *gocui.Gui, v *gocui.View) error {
 		return gui.WithWaitingStatus(gui.Tr.StoppingStatus, func() error {
-			if err := container.Stop(); err != nil {
+			if err := ctr.Stop(); err != nil {
 				return gui.createErrorPanel(err.Error())
 			}
 
@@ -394,13 +406,13 @@ func (gui *Gui) handleContainerStop(g *gocui.Gui, v *gocui.View) error {
 }
 
 func (gui *Gui) handleContainerRestart(g *gocui.Gui, v *gocui.View) error {
-	container, err := gui.Panels.Containers.GetSelectedItem()
+	ctr, err := gui.Panels.Containers.GetSelectedItem()
 	if err != nil {
 		return nil
 	}
 
 	return gui.WithWaitingStatus(gui.Tr.RestartingStatus, func() error {
-		if err := container.Restart(); err != nil {
+		if err := ctr.Restart(); err != nil {
 			return gui.createErrorPanel(err.Error())
 		}
 
@@ -409,12 +421,12 @@ func (gui *Gui) handleContainerRestart(g *gocui.Gui, v *gocui.View) error {
 }
 
 func (gui *Gui) handleContainerAttach(g *gocui.Gui, v *gocui.View) error {
-	container, err := gui.Panels.Containers.GetSelectedItem()
+	ctr, err := gui.Panels.Containers.GetSelectedItem()
 	if err != nil {
 		return nil
 	}
 
-	c, err := container.Attach()
+	c, err := ctr.Attach()
 	if err != nil {
 		return gui.createErrorPanel(err.Error())
 	}
@@ -435,45 +447,66 @@ func (gui *Gui) handlePruneContainers() error {
 }
 
 func (gui *Gui) handleContainerViewLogs(g *gocui.Gui, v *gocui.View) error {
-	container, err := gui.Panels.Containers.GetSelectedItem()
+	ctr, err := gui.Panels.Containers.GetSelectedItem()
 	if err != nil {
 		return nil
 	}
 
-	gui.renderLogsToStdout(container)
+	gui.renderLogsToStdout(ctr)
 
 	return nil
 }
 
 func (gui *Gui) handleContainersExecShell(g *gocui.Gui, v *gocui.View) error {
-	container, err := gui.Panels.Containers.GetSelectedItem()
+	ctr, err := gui.Panels.Containers.GetSelectedItem()
 	if err != nil {
 		return nil
 	}
 
-	return gui.containerExecShell(container)
+	return gui.containerExecShell(ctr)
 }
 
 func (gui *Gui) containerExecShell(container *commands.Container) error {
 	commandObject := gui.DockerCommand.NewCommandObject(commands.CommandObject{
 		Container: container,
 	})
+	var command string
+	shell := ""
 
-	// TODO: use SDK
-	resolvedCommand := utils.ApplyTemplate("docker exec -it {{ .Container.ID }} /bin/sh -c 'eval $(grep ^$(id -un): /etc/passwd | cut -d : -f 7-)'", commandObject)
+	preferredExecShells := gui.Config.UserConfig.CommandTemplates.PreferredExecShells
+	if len(preferredExecShells) > 0 {
+		for _, preferredExecShell := range preferredExecShells {
+			command := utils.ApplyTemplate(fmt.Sprintf("docker exec {{ .Container.ID }} which %s", preferredExecShell), commandObject)
+
+			err := gui.runCommandSilently(gui.OSCommand.ExecutableFromString(command))
+			if err == nil {
+				shell = preferredExecShell
+				break
+			}
+		}
+	}
+
+	// TODO: Use SDK
+	// Use default implementation in case we cannot fulfill user's preference
+	if shell == "" {
+		command = utils.ApplyTemplate("docker exec -it {{ .Container.ID }} /bin/sh -c 'eval $(grep ^$(id -un): /etc/passwd | cut -d : -f 7-)'", commandObject)
+	} else {
+		command = utils.ApplyTemplate(fmt.Sprintf("docker exec -it {{ .Container.ID }} %s", shell), commandObject)
+	}
+
 	// attach and return the subprocess error
-	cmd := gui.OSCommand.ExecutableFromString(resolvedCommand)
+	cmd := gui.OSCommand.ExecutableFromString(command)
 	return gui.runSubprocess(cmd)
 }
 
 func (gui *Gui) handleContainersCustomCommand(g *gocui.Gui, v *gocui.View) error {
-	container, err := gui.Panels.Containers.GetSelectedItem()
+	ctr, err := gui.Panels.Containers.GetSelectedItem()
 	if err != nil {
 		return nil
 	}
 
 	commandObject := gui.DockerCommand.NewCommandObject(commands.CommandObject{
-		Container: container,
+		Container: ctr,
 	})
 
 	customCommands := gui.Config.UserConfig.CustomCommands.Containers
@@ -484,8 +517,8 @@ func (gui *Gui) handleContainersCustomCommand(g *gocui.Gui, v *gocui.View) error
 func (gui *Gui) handleStopContainers() error {
 	return gui.createConfirmationPanel(gui.Tr.Confirm, gui.Tr.ConfirmStopContainers, func(g *gocui.Gui, v *gocui.View) error {
 		return gui.WithWaitingStatus(gui.Tr.StoppingStatus, func() error {
-			for _, container := range gui.Panels.Containers.List.GetAllItems() {
-				if err := container.Stop(); err != nil {
+			for _, ctr := range gui.Panels.Containers.List.GetAllItems() {
+				if err := ctr.Stop(); err != nil {
 					gui.Log.Error(err)
 				}
 			}
@@ -498,8 +531,8 @@ func (gui *Gui) handleStopContainers() error {
 func (gui *Gui) handleRemoveContainers() error {
 	return gui.createConfirmationPanel(gui.Tr.Confirm, gui.Tr.ConfirmRemoveContainers, func(g *gocui.Gui, v *gocui.View) error {
 		return gui.WithWaitingStatus(gui.Tr.RemovingStatus, func() error {
-			for _, container := range gui.Panels.Containers.List.GetAllItems() {
-				if err := container.Remove(dockerTypes.ContainerRemoveOptions{Force: true}); err != nil {
+			for _, ctr := range gui.Panels.Containers.List.GetAllItems() {
+				if err := ctr.Remove(container.RemoveOptions{Force: true}); err != nil {
 					gui.Log.Error(err)
 				}
 			}
@@ -533,21 +566,21 @@ func (gui *Gui) handleContainersBulkCommand(g *gocui.Gui, v *gocui.View) error {
 
 // Open first port in browser
 func (gui *Gui) handleContainersOpenInBrowserCommand(g *gocui.Gui, v *gocui.View) error {
-	container, err := gui.Panels.Containers.GetSelectedItem()
+	ctr, err := gui.Panels.Containers.GetSelectedItem()
 	if err != nil {
 		return nil
 	}
 
-	return gui.openContainerInBrowser(container)
+	return gui.openContainerInBrowser(ctr)
 }
 
-func (gui *Gui) openContainerInBrowser(container *commands.Container) error {
+func (gui *Gui) openContainerInBrowser(ctr *commands.Container) error {
 	// skip if no any ports
-	if len(container.Container.Ports) == 0 {
+	if len(ctr.Container.Ports) == 0 {
 		return nil
 	}
 	// skip if the first port is not published
-	port := container.Container.Ports[0]
+	port := ctr.Container.Ports[0]
 	if port.IP == "" {
 		return nil
 	}

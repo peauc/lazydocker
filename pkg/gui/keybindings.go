@@ -216,8 +216,8 @@ func (gui *Gui) GetInitialKeybindings() []*Binding {
 			ViewName:    "containers",
 			Key:         's',
 			Modifier:    gocui.ModNone,
-			Handler:     gui.handleContainerStop,
-			Description: gui.Tr.Stop,
+			Handler:     gui.handleContainerStartStop,
+			Description: gui.Tr.StartStop,
 		},
 		{
 			ViewName:    "containers",
@@ -539,6 +539,15 @@ func (gui *Gui) GetInitialKeybindings() []*Binding {
 			{ViewName: viewName, Key: gocui.MouseLeft, Modifier: gocui.ModNone, Handler: wrappedHandler(onClick)},
 		}...)
 	}
+
+	bindings = append(bindings, []*Binding{
+		{Handler: gui.handleGoTo(gui.Panels.Projects.View), Key: '1', Description: gui.Tr.FocusProjects},
+		{Handler: gui.handleGoTo(gui.Panels.Services.View), Key: '2', Description: gui.Tr.FocusServices},
+		{Handler: gui.handleGoTo(gui.Panels.Containers.View), Key: '3', Description: gui.Tr.FocusContainers},
+		{Handler: gui.handleGoTo(gui.Panels.Images.View), Key: '4', Description: gui.Tr.FocusImages},
+		{Handler: gui.handleGoTo(gui.Panels.Volumes.View), Key: '5', Description: gui.Tr.FocusVolumes},
+		{Handler: gui.handleGoTo(gui.Panels.Networks.View), Key: '6', Description: gui.Tr.FocusNetworks},
+	}...)
 
 	for _, panel := range gui.allListPanels() {
 		setUpDownClickBindings(panel.GetView().Name(), panel.HandlePrevLine, panel.HandleNextLine, panel.HandleClick)
