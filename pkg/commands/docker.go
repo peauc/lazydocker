@@ -144,7 +144,7 @@ func (c *DockerCommand) Close() error {
 }
 
 func (c *DockerCommand) GetAllComposeProjects() map[string]ComposeProject {
-	containers, _ := c.Client.ContainerList(context.Background(), dockerTypes.ContainerListOptions{
+	containers, _ := c.Client.ContainerList(context.Background(), container.ListOptions{
 		All: true,
 	})
 
@@ -197,10 +197,12 @@ func (c *DockerCommand) CreateClientStatMonitor(container *Container) {
 }
 
 func (c *DockerCommand) RefreshContainersAndServices(currentServices []*Service, currentContainers []*Container) ([]*Container, []*Service, error) {
+
+	containers, err := c.GetContainers(currentContainers)
+
 	c.ServiceMutex.Lock()
 	defer c.ServiceMutex.Unlock()
 
-	containers, err := c.GetContainers(currentContainers)
 	if err != nil {
 		return nil, nil, err
 	}
