@@ -19,7 +19,7 @@ import (
 	"github.com/samber/lo"
 )
 
-var isStandaloneContainer = func(container *commands.Container) bool {
+func isStandaloneContainer(container *commands.Container) bool {
 	if container.OneOff || container.ServiceName == "" {
 		return true
 	}

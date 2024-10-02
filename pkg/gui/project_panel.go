@@ -157,6 +157,7 @@ func (gui *Gui) handleEditConfig(g *gocui.Gui, v *gocui.View) error {
 
 func (gui *Gui) handleComposeProjectSelect(g *gocui.Gui, v *gocui.View) error {
 	project, err := gui.Panels.Projects.GetSelectedItem()
+	gui.Log.Debugf("handle select: %s", project)
 	if err != nil {
 		return nil
 	}

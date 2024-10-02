@@ -293,6 +293,7 @@ func (c *DockerCommand) GetContainers(existingContainers []*Container) ([]*Conta
 
 // GetServices gets services
 func (c *DockerCommand) GetServices() ([]*Service, error) {
+	c.Log.Error(fmt.Sprintf("selected project %s", c.SelectedComposeProject))
 	if c.SelectedComposeProject == nil {
 		return nil, nil
 	}
