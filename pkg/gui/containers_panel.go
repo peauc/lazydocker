@@ -358,6 +358,22 @@ func (gui *Gui) PauseContainer(container *commands.Container) error {
 	})
 }
 
+func (gui *Gui) CopyContainerId(container *commands.Container) error {
+	return gui.WithWaitingStatus(gui.Tr.PausingStatus, func() (err error) {
+		if container.Details.State.Paused {
+			err = container.Unpause()
+		} else {
+			err = container.Pause()
+		}
+
+		if err != nil {
+			return gui.createErrorPanel(err.Error())
+		}
+
+		return gui.refreshContainersAndServices()
+	})
+}
+
 func (gui *Gui) handleContainerPause(g *gocui.Gui, v *gocui.View) error {
 	ctr, err := gui.Panels.Containers.GetSelectedItem()
 	if err != nil {

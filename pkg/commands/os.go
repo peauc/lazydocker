@@ -380,7 +380,7 @@ func (c *OSCommand) CopyToClipboard(str string) error {
 	truncated := utils.TruncateWithEllipsis(escaped, 40)
 
 	msg := utils.ResolvePlaceholderString(
-		c.Log.CopyToClipboard,
+		"Copying '{{.str}}' to clipboard",
 		map[string]string{
 			"str": truncated,
 		},
