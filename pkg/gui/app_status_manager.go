@@ -30,7 +30,8 @@ func (m *statusManager) removeStatus(name string) {
 func (m *statusManager) addWaitingStatus(name string) {
 	m.removeStatus(name)
 	newStatus := appStatus{
-		name:       name,
+		name: name,
+		//TODO: add a different enum for information statuses
 		statusType: "waiting",
 		duration:   0,
 	}
@@ -46,6 +47,11 @@ func (m *statusManager) getStatusString() string {
 		return topStatus.name + " " + utils.Loader()
 	}
 	return topStatus.name
+}
+
+// WithStaticWaitingStatus shows a waiting status for a specific duration
+func (gui *Gui) WithStaticWaitingStatus(name string, duration time.Duration) error {
+	return gui.WithWaitingStatus(name, func() error { time.Sleep(duration); return nil })
 }
 
 // WithWaitingStatus wraps a function and shows a waiting status while the function is still executing
