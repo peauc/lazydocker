@@ -1,6 +1,7 @@
 package gui
 
 import (
+	"sync"
 	"time"
 
 	"github.com/jesseduffield/gocui"
@@ -15,10 +16,15 @@ type appStatus struct {
 
 type statusManager struct {
 	statuses []appStatus
+	lock     *sync.Mutex
 }
 
 func (m *statusManager) removeStatus(name string) {
 	newStatuses := []appStatus{}
+
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
 	for _, status := range m.statuses {
 		if status.name != name {
 			newStatuses = append(newStatuses, status)
@@ -28,6 +34,9 @@ func (m *statusManager) removeStatus(name string) {
 }
 
 func (m *statusManager) addWaitingStatus(name string) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
 	m.removeStatus(name)
 	newStatus := appStatus{
 		name: name,
