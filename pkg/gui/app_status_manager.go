@@ -48,6 +48,9 @@ func (m *statusManager) addWaitingStatus(name string) {
 }
 
 func (m *statusManager) getStatusString() string {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
 	if len(m.statuses) == 0 {
 		return ""
 	}
